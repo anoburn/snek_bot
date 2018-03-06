@@ -186,7 +186,7 @@ class World:  # starting population size, population, mutation rate, mutation de
         # game speed, running and pause
         self.speed = 8
         self.running = True
-        self.show = True
+        self.show = False
         self.paused = False
         # textbox holder
         self.text_boxes = []  # contains: surface with rendered text, location_rectangle
