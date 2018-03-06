@@ -226,7 +226,7 @@ class World:  # starting population size, population, mutation rate, mutation de
             self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file))
             self.plot_fitness.convert()
         except:
-            pass
+            self.plot_fitness = pygame.Surface((100, 100))
         self.start_run()
  
     def textbox(self, _fontsize, _text, pos_l, pos_t):
