@@ -9,7 +9,7 @@ import os
 import timeit
 import functools
  
- 
+
 #def setup():
 #    pygame.init()
 #    logging.basicConfig(stream=sys.stderr, level=logging.ERROR)  # set to ERROR to omit debugging
@@ -27,7 +27,6 @@ def start_run(mut_rate, mut_dev, max_gen):
     lastgen = 0
     while game.running and lastgen <= max_gen:
         game.current_snake.calc_dir(game.input)
-        #timer = timeit.Timer(functools.partial(game.move, game.current_snake.dir))
         #print(timer.timeit(10))
         #timer = timeit.Timer(functools.partial(game.generate_matrix, game.population[0].input_to_hidden1, game.population[1].input_to_hidden1, 0.5))
         #print(timer.timeit(10))
