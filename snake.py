@@ -106,7 +106,7 @@ class Rectangle:
  
  
 class Snake:
-    def __init__(self, m1= None, m2= None, m3= None):
+    def __init__(self, m1=None, m2=None, m3=None):
         self.dir = 'RIGHT'
         self.body = []
         self.hidden_layer_1_neurons = 32
@@ -157,7 +157,6 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.grid = _game_grid
         self.width, self.height = self.grid.shape
         # instantiate snake and append starting snake
-        # TODO: generate runspecific folder
         self.generation = 1
         self.population = [Snake() for _ in range(50)]
         self.spawn_counter = 1
@@ -437,14 +436,13 @@ class World:  # starting population size, population, mutation rate, mutation de
         
         diff = body_array - head
 
-        x_same = diff[ diff[:,1]==0, 0 ]
-        up   = min( -x_same[x_same < 0] -1, default =    head[0])
-        down = min(  x_same[x_same > 0] -1, default = 29-head[0])
+        x_same = diff[diff[:, 1] == 0, 0]
+        up   = min(-x_same[x_same < 0] - 1, default=    head[0])
+        down = min( x_same[x_same > 0] - 1, default= 29-head[0])
 
-
-        y_same = diff[ diff[:,0]==0, 1 ]
-        left  = min( -y_same[y_same < 0] -1, default =    head[1])
-        right = min(  y_same[y_same > 0] -1, default = 29-head[1])
+        y_same = diff[diff[:, 0] == 0, 1]
+        left  = min(-y_same[y_same < 0] - 1, default=    head[1])
+        right = min( y_same[y_same > 0] - 1, default= 29-head[1])
 
  
         '''vertical, horizontal = [], []
@@ -496,7 +494,7 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.last_fruit += 1
         if self.last_fruit > 700:
             distance = np.array(self.fruit_pos) - np.array(self.current_snake.body[-1])
-            distance = np.sqrt( np.sum( distance * distance))
+            distance = np.sqrt(np.sum(distance * distance))
             #self.score += int( 1 / distance ) * 200
             self.score += (200 - int(distance * 200 / 43))
             self.current_snake.dead = True
