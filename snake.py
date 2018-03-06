@@ -18,7 +18,7 @@ import functools
 def start_run(mut_rate, mut_dev, max_gen, save_directory=None):
     logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
     pygame.init()       # Wurde von setup() hierhin verschoben
-    size = width, height = 800, 600
+    size = width, height = 1000, 600
     screen = pygame.display.set_mode(size)
     clock = pygame.time.Clock()
     rec = Rectangle(10, 10, 1)
@@ -33,7 +33,7 @@ def start_run(mut_rate, mut_dev, max_gen, save_directory=None):
         game.move(game.current_snake.dir)
         game.update_score()
         if lastgen % 100 == 0:
-            #game.save_population(game.autosave_file)
+            # TODO: game.save_population(game.autosave_file)
             pass
         if not game.show:
             if lastgen != game.generation:
@@ -43,6 +43,7 @@ def start_run(mut_rate, mut_dev, max_gen, save_directory=None):
                 screen.fill((0, 0, 0))
                 for text, recta in game.text_boxes:
                     screen.blit(text, recta)
+                screen.blit(game.plot_fitness, (350, 0))
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                     game.show = not game.show
@@ -54,9 +55,9 @@ def start_run(mut_rate, mut_dev, max_gen, save_directory=None):
             pygame.display.flip()
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        game.paused = not game.paused
-                    elif event.key == pygame.K_ESCAPE:
+                    # if event.key == pygame.K_SPACE:
+                    #     game.paused = not game.paused
+                    if event.key == pygame.K_ESCAPE:
                         game.running = False
                         break
                     elif event.key == pygame.K_LEFT:
@@ -81,13 +82,12 @@ def start_run(mut_rate, mut_dev, max_gen, save_directory=None):
                         game.show = not game.show
                     #     game.current_snake.set_dir('UP')
                     #     logging.debug('U')
-            if game.paused:
-                continue
             # game.move(game.current_snake.dir)
             # game.current_snake.calc_dir(game.input)
             screen.fill((0, 0, 0))
             for text, recta in game.text_boxes:
                 screen.blit(text, recta)
+            screen.blit(game.plot_fitness, (350, 0))
             for row in range(game.width):
                 for column in range(game.height):
                     color = game.get_RGB(row, column)
@@ -128,6 +128,7 @@ class Snake:
             self.hidden2_to_output = m3
 
         self.fitness = 1
+        self.snake_score = 0
         self.dead = False
 
     def append(self, x, y):
@@ -176,9 +177,14 @@ class World:  # starting population size, population, mutation rate, mutation de
  
         self.save_file = self.folder + 'gen{}.txt'.format(self.generation)
         self.autosave_file = self.folder + 'autosave/gen_{}.txt'.format(self.generation)
-        self.figure_file = self.folder + 'gen_{}.png'.format(self.generation)
-        self.figure_data_file = self.folder + 'figure_data.txt'
+        self.figure_fitness_file = self.folder + 'fitness.png'
+        self.figure_fitness_data_file = self.folder + 'fitness_data.txt'
+        self.figure_snake_score_file = self.folder + 'score.png'
+        self.figure_snake_score_data_file = self.folder + 'score_data.txt'
         self.parent_fitness = []
+        self.parent_snake_scores = []
+        self.fitness_means, self.fitness_maxs = [], []
+        self.snake_scores_means, self.snake_scores_maxs = [], []
         self.death_wall = 0
         self.death_self = 0
         self.death_time = 0
@@ -215,7 +221,12 @@ class World:  # starting population size, population, mutation rate, mutation de
         mut_rate_text, mut_rate_rec, mut_rate_font = self.textbox(40, 'Mutation rate: {}'.format(self.mutation_rate), 10, 470)
         self.text_boxes.append([mut_rate_text, mut_rate_rec])
         self.text_fonts.append(mut_rate_font)
- 
+        # images
+        try:
+            self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file))
+            self.plot_fitness.convert()
+        except:
+            pass
         self.start_run()
  
     def textbox(self, _fontsize, _text, pos_l, pos_t):
@@ -240,7 +251,12 @@ class World:  # starting population size, population, mutation rate, mutation de
                 self.text_boxes[x][0] = font.render('Deaths: s: {}, w: {}, t: {}'.format(self.death_self, self.death_wall, self.death_time), True, (255, 255, 255))
             elif x == 5:
                 self.text_boxes[x][0] = font.render('Mutation rate: {}'.format(self.mutation_rate), True, (255, 255, 255))
- 
+
+    def load_images(self):
+        self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file))
+        self.plot_fitness.convert()
+        #self.plot_fitness = pygame.transform.scale(self.plot_fitness, (int(self.plot_fitness.get_width() * 0.7), int(self.plot_fitness.get_height() * 0.7)))
+
     def get_RGB(self, _row, _column):
         return number_to_RGB[self.grid[_row][_column]]
  
@@ -280,6 +296,7 @@ class World:  # starting population size, population, mutation rate, mutation de
                 elif b == 2:
                     self.spawn_fruit()
                     self.score += 500
+                    self.current_snake.snake_score += 1
                     self.last_fruit = 0
                     logging.info('collected fruit')
                 # move snake to direction
@@ -300,37 +317,48 @@ class World:  # starting population size, population, mutation rate, mutation de
             self.spawn_counter += 1
             self.start_run()
         else:
-            self.generate_images()
             self.reproduce()
+            self.generate_images()
  
     def generate_images(self):
-        means, maxs = [], []
-        for data in self.parent_fitness:
-            data = np.array(data)
-            means.append(np.mean(data))
-            maxs.append(np.max(data))
- 
-        len = means.__len__()
+        data = self.parent_fitness[-1]
+        data = np.array(data)
+        self.fitness_means.append(np.mean(data))
+        self.fitness_maxs.append(np.max(data))
+        data = self.parent_snake_scores[-1]
+        data = np.array(data)
+        self.snake_scores_means.append(np.mean(data))
+        self.snake_scores_maxs.append(np.max(data))
+        x = range(1, self.fitness_means.__len__() + 1)
         fig1 = plt.figure()
-        mean, = plt.plot(range(len), means, color='green', linestyle='solid', linewidth=0.5)
-        max, = plt.plot(range(len), maxs, color='red', marker=',', linewidth=0.2)
+        fitness_mean, = plt.plot(x, self.fitness_means, color='green', linestyle='solid', linewidth=0.5)
+        fitness_max, = plt.plot(x, self.fitness_maxs, color='red', marker=',', linewidth=0.2)
         plt.title('Mutationrate: {}, Mutationdeviation: {}'.format(self.mutation_rate, self.mutation_deviation))
         plt.xlabel('Generation')
         plt.ylabel('Fitness')
-        plt.legend([mean, max], ["mean", "max"])
-        plt.savefig(self.figure_file)
+        plt.legend([fitness_mean, fitness_max], ["mean", "max"])
+        plt.savefig(self.figure_fitness_file)
+        fig2 = plt.figure()
+        snake_score_mean, = plt.plot(x, self.snake_scores_means, color='green', linestyle='solid', linewidth=0.5)
+        snake_score_max, = plt.plot(x, self.snake_scores_maxs, color='red', marker=',', linewidth=0.2)
+        plt.title('Mutationrate: {}, Mutationdeviation: {}'.format(self.mutation_rate, self.mutation_deviation))
+        plt.xlabel('Generation')
+        plt.ylabel('Snake Score')
+        plt.legend([snake_score_mean, snake_score_max], ["mean", "max"])
+        plt.savefig(self.figure_snake_score_file)
         plt.close(fig1)
- 
-            # print(data)
- 
+        plt.close(fig2)
+        self.load_images()
+
     def reproduce(self):
         logging.info('\n\n\n\n\nGenerating Offspring')
         self.generation += 1
         # get fitness of all snakes, get top x fittest, get indices of top x fittest
-        scores = np.array([self.population[i].fitness for i in range(self.population.__len__())], dtype=int)
-        top_indices = scores.argsort()[-20:][::-1]
-        top_fitness = sorted(scores)[-20:][::-1]
-        logging.debug('fitness of parents: {}\ntop 20 fitness: {}'.format(scores, top_fitness))
+        fitnesses = np.array([self.population[i].fitness for i in range(self.population.__len__())], dtype=int)
+        top_indices = fitnesses.argsort()[-20:][::-1]
+        top_fitness = sorted(fitnesses)[-20:][::-1]
+        self.parent_snake_scores.append(np.array([self.population[i].snake_score for i in range(self.population.__len__())]))
+        logging.debug('fitness of parents: {}\ntop 20 fitness: {}'.format(fitnesses, top_fitness))
         self.parent_fitness.append(top_fitness)
         # get list of parents and generate offspring
         parents = [self.population[index] for index in top_indices]
