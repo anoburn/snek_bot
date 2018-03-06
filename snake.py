@@ -176,7 +176,7 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.save_file = self.folder + 'gen{}.txt'.format(self.generation)
         self.autosave_file = self.folder + 'autosave/gen_{}.txt'.format(self.generation)
         self.figure_file = self.folder + 'gen_{}.png'.format(self.generation)
-        self.figure_data_file = self.folder + 'figure_data.txt'
+        self.figure_data_file = self.folder + 'figuredata.txt'
         self.parent_fitness = []
         self.death_wall = 0
         self.death_self = 0
