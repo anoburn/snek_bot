@@ -15,7 +15,7 @@ import functools
 #    logging.basicConfig(stream=sys.stderr, level=logging.ERROR)  # set to ERROR to omit debugging
  
  
-def start_run(mut_rate, mut_dev, max_gen):
+def start_run(mut_rate, mut_dev, max_gen, save_directory=None):
     logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
     pygame.init()       # Wurde von setup() hierhin verschoben
     size = width, height = 800, 600
@@ -23,7 +23,7 @@ def start_run(mut_rate, mut_dev, max_gen):
     clock = pygame.time.Clock()
     rec = Rectangle(10, 10, 1)
     grid = np.zeros((30, 30))
-    game = World(grid, mut_rate, mut_dev)
+    game = World(grid, mut_rate, mut_dev, save_directory)
     lastgen = 0
     while game.running and lastgen <= max_gen:
         game.current_snake.calc_dir(game.input)
