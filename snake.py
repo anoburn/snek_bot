@@ -152,7 +152,7 @@ class Snake:
  
  
 class World:  # starting population size, population, mutation rate, mutation deviation,
-    def __init__(self, _game_grid, _mutation_rate, _mutation_dev):
+    def __init__(self, _game_grid, _mutation_rate, _mutation_dev, save_directory=None):
         # get the basic game grid and resulting width and height
         self.grid = _game_grid
         self.width, self.height = self.grid.shape
@@ -166,7 +166,10 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.mutation_rate = _mutation_rate
         self.mutation_deviation = _mutation_dev
         # generate folder
-        self.folder = './data/m_rate_{}_m_dev_{}/'.format(self.mutation_rate, self.mutation_deviation)
+        if(save_directory is not None):
+            self.folder = save_directory
+        else:
+            self.folder = './data/m_rate_{}_m_dev_{}/'.format(self.mutation_rate, self.mutation_deviation)
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
             os.makedirs(self.folder + 'autosave/')
