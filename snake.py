@@ -443,30 +443,6 @@ class World:  # starting population size, population, mutation rate, mutation de
         y_same = diff[diff[:, 0] == 0, 1]
         left  = min(-y_same[y_same < 0] - 1, default=    head[1])
         right = min( y_same[y_same > 0] - 1, default= 29-head[1])
-
- 
-        '''vertical, horizontal = [], []
-        # vert = [self.grid[y][i] if self.grid[y][i] == 1 else None for i in range(self.width)]
-        # logging.info('???: {}'.format(vert))
-        for i in range(self.width):
-            if self.grid[y][i] == 1 and i != x:
-                horizontal.append(i)
-        for i in range(self.height):
-            if self.grid[i][x] == 1 and i != y:
-                vertical.append(i)
-        logging.debug('horizontal: {}, vertical: {}'.format(horizontal, vertical))
- 
-        hor_pre = [num for num in horizontal if num < x]
-        hor_post = [num for num in horizontal if num > x]
-        logging.debug('hor_pre: {}, hor_post: {}'.format(hor_pre, hor_post))
-        ve_pre = [num for num in vertical if num < y]
-        ve_post = [num for num in vertical if num > y]
-        logging.debug('ver_pre: {}, ver_post: {}'.format(ve_pre, ve_post))
- 
-        right  = min(hor_post, default=30) - x - 1
-        left   = x - max(hor_pre, default=-1) - 1
-        up     = y - max(ve_pre, default=-1) - 1
-        down   = min(ve_post, default=30) - y - 1'''
  
         fruit_horizontal   = self.fruit_pos[1] - head[1]
         fruit_vertical     = self.fruit_pos[0] - head[0]
