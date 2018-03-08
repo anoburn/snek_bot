@@ -95,13 +95,13 @@ def get_picture(bot, update):
 
     input = update.message.text.split()
     thread_name = input[1]
+    path = "./data/%s/fitness.png"%(thread_name)
 
-    if(thread_name not in runs.keys()):
-        bot.send_message(chat_id=chat_id, text="Thread name not found")
-        return
-    else:
-        path = "./data/%s/fitness.png"%(thread_name)
+    if(os.path.isfile(path)):
         bot.sendPhoto(chat_id=chat_id, photo=open(path, "rb"))
+    else:
+        bot.send_message(chat_id=chat_id, text="No file found for run name")
+        
 
 dispatcher.add_handler(CommandHandler("get_picture", get_picture))
 
