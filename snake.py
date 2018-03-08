@@ -223,8 +223,7 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.text_fonts.append(mut_rate_font)
         # images
         try:
-            self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file))
-            self.plot_fitness.convert()
+            self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file)).convert()
         except:
             self.plot_fitness = pygame.Surface((100, 100))
         self.start_run()
@@ -278,14 +277,13 @@ class World:  # starting population size, population, mutation rate, mutation de
     def move(self, direction):
         # check if snake is dead
         if not self.current_snake.dead:
-            logging.debug(str(self.current_snake.dir))
+            logging.debug('Direction: {}'.format(self.current_snake.dir))
             # check upcoming block
             x, y = directions[direction]
             goal = (self.current_snake.body[-1][0] + x, self.current_snake.body[-1][1] + y)
             if 0 <= goal[0] < self.width and 0 <= goal[1] < self.height:
                 b = self.grid[goal[0]][goal[1]]
                 if b == 1:
-                    logging.info('Snake died: hit body')
                     self.death_self += 1
                     self.current_snake.dead = True
                 # remove the last part of the snake if no fruit was found
@@ -298,13 +296,12 @@ class World:  # starting population size, population, mutation rate, mutation de
                     self.score += 500
                     self.current_snake.snake_score += 1
                     self.last_fruit = 0
-                    logging.info('collected fruit')
+                    logging.debug('collected fruit')
                 # move snake to direction
                 self.append_snake(goal[0], goal[1])
                 logging.debug('Snake Body: {}'.format(self.current_snake.body))
                 self.update_distances()
             else:
-                logging.info('Snake died: hit the wall')
                 self.death_wall += 1
                 self.current_snake.dead = True
         else:
@@ -351,7 +348,7 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.load_images()
 
     def reproduce(self):
-        logging.info('\n\n\n\n\nGenerating Offspring')
+        logging.info('\n\nGenerating Offspring')
         self.generation += 1
         # get fitness of all snakes, get top x fittest, get indices of top x fittest
         fitnesses = np.array([self.population[i].fitness for i in range(self.population.__len__())], dtype=int)
@@ -362,13 +359,11 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.parent_fitness.append(top_fitness)
         # get list of parents and generate offspring
         parents = [self.population[index] for index in top_indices]
-        logging.debug('parent 0: \nmatrix0: {}, \nmatrix1:{}, \nmatrix2:{}'.format(parents[0].input_to_hidden1, parents[0].hidden1_to_hidden2, parents[0].hidden2_to_output))
         np_o_p = [8, 8, 7, 7, 7, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2]
         #offspring = [Snake() for _ in range(parents.__len__() * 5)]
         offspring = []
         for i, parent in enumerate(parents):
             partners = [parents[index] for index in random.sample(range(parents.__len__()), np_o_p[i])]
-            logging.debug('Parent: {}, partners length: {}, with partners: {} '.format(parents[i], partners.__len__(), partners))
             for j, partner in enumerate(partners):
                 quotient = parent.fitness / (parent.fitness + partner.fitness)
                 
@@ -380,7 +375,6 @@ class World:  # starting population size, population, mutation rate, mutation de
                 matrix2 = self.generate_matrix(parent.hidden1_to_hidden2, partner.hidden1_to_hidden2, quotient)
                 matrix3 = self.generate_matrix(parent.hidden2_to_output, partner.hidden2_to_output, quotient)
                 offspring.append(Snake(matrix1, matrix2, matrix3))
-                logging.debug('done with one offspring\n\n\n')
         #clone = [Snake() for _ in range(10)]
         for i in range(2):
             for j in range(5):
@@ -423,7 +417,7 @@ class World:  # starting population size, population, mutation rate, mutation de
         return result.reshape((neurons2, neurons1))
  
     def start_run(self):
-        logging.warning('STARTED RUN')
+        logging.debug('STARTED RUN')
         self.grid = np.zeros((self.width, self.height))
         start_loc = np.random.randint(5, 25, size=2)
         self.spawn_snake(start_loc[0], start_loc[1])
@@ -505,7 +499,6 @@ class World:  # starting population size, population, mutation rate, mutation de
             #self.score += int( 1 / distance ) * 200
             self.score += (200 - int(distance * 200 / 43))
             self.current_snake.dead = True
-            logging.info('Snake died: timeout')
             self.death_time += 1
  
     def set_speed(self, _int):
