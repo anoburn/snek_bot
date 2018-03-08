@@ -106,6 +106,21 @@ def get_picture(bot, update):
 dispatcher.add_handler(CommandHandler("get_picture", get_picture))
 
 
+def stop_run(bot, update):
+    chat_id = update.message.chat_id
+
+    run_name = update.message.text.split()[1]
+
+    if(run_name not in threads):
+        bot.send_message(chat_id=chat_id, text="Run not found or not active")
+        return
+    else:
+        threads[run_name].terminate()
+        bot.send_message(chat_id=chat_id, text="%s has been terminated"%run_name)
+
+dispatcher.add_handler(CommandHandler("stop_run", stop_run))
+
+
 
 if __name__ == "__main__": 
 
