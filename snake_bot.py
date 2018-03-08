@@ -8,7 +8,7 @@ from collections import namedtuple
 import os
 
 
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.ERROR)
 
 updater = Updater(token="559384287:AAGt9y-Cyl7CmW_8nr4a3W0yL6bpbu9NHxM")
 dispatcher = updater.dispatcher
@@ -60,13 +60,28 @@ def run_thread(bot, update, thread_name, mut_rate, mut_dev, max_gen):
 
 
 
-def get_runs(bot, update):
+def get_active(bot, update):
     chat_id = update.message.chat_id
     text = "Current runs:\n"
 
     for run in runs:
-        if(threads[run.name].is_alive()):
-            text += "%s:   mut_rate = %.2f   mut_dev = %.2f   max_gen = %i\n"%(run.name, run.mut_rate, run.mut_dev, run.max_gen)
+        if(run.name in threads):
+            if(threads[run.name].is_alive()):
+                text += "%s:   mut_rate = %.2f   mut_dev = %.2f   max_gen = %i\n"%(run.name, run.mut_rate, run.mut_dev, run.max_gen)
+
+    bot.send_message(chat_id=chat_id, text=text)
+
+get_active_handler = CommandHandler("get_active", get_active)
+dispatcher.add_handler(get_active_handler)
+
+
+
+def get_runs(bot, update):
+    chat_id = update.message.chat_id
+    text = "All runs:\n"
+
+    for run in runs:
+        text += "%s:   mut_rate = %.2f   mut_dev = %.2f   max_gen = %i\n"%(run.name, run.mut_rate, run.mut_dev, run.max_gen)
 
     bot.send_message(chat_id=chat_id, text=text)
 
