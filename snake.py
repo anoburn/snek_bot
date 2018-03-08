@@ -348,7 +348,7 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.load_images()
 
     def reproduce(self):
-        logging.info('\n\nGenerating Offspring')
+        logging.debug('\n\nGenerating Offspring')
         self.generation += 1
         # get fitness of all snakes, get top x fittest, get indices of top x fittest
         fitnesses = np.array([self.population[i].fitness for i in range(self.population.__len__())], dtype=int)
