@@ -6,7 +6,9 @@ import snake
 import pickle
 from collections import namedtuple
 import os
+import psutil
 import shutil
+from copy import deepcopy
 
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -16,6 +18,9 @@ dispatcher = updater.dispatcher
 
 
 def save_runs():
+    path = "./data/"
+    if not os.path.exists(path):
+            os.makedirs(path)
     datei = open("./data/runs.obj", "wb")
     pickle.dump(runs,datei)
 
@@ -38,7 +43,7 @@ def start_run(bot, update):
     runs[run_name] = run
     save_runs()
 
-    threads[thread_name] = thread
+    threads[run_name] = thread
 
     thread.start()
 
@@ -49,6 +54,13 @@ dispatcher.add_handler(start_handler)
 
 def run_thread(bot, update, thread_name, mut_rate, mut_dev, max_gen):
 
+    p = psutil.Process(os.getpid())
+    if(os.name == 'nt'):
+        #Windows
+        p.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+    elif(os.name == "posix"):
+        #Unix
+        p.nice(19)
 
     bot.send_message(chat_id=update.message.chat_id, text="Starting thread %s "%(thread_name))
     logging.info("Starting thread %s "%(thread_name))
@@ -79,9 +91,31 @@ dispatcher.add_handler(get_active_handler)
 
 def get_runs(bot, update):
     chat_id = update.message.chat_id
-    text = "All runs:\n"
+    text = "Specified runs:\n"
+    input = update.message.text.split()[1:]
+    runs_copy = dict(runs)
+   
+    for cond in input:
+        cond = cond.split('=')
+        cond[0] = cond[0].lower()
+        cond[1] = cond[1].lower()
+        if '-' in cond[1]:
+            min, max = cond[1].split('-')
+            min = float(min)
+            max = float(max)
 
-    for run_name in runs:
+            for run_name in runs:
+                run = runs[run_name]
+                value = getattr(run, cond[0])
+                if not (min <= value <= max):
+                    runs_copy.pop(run_name, None)
+        else:
+            for run_name in runs:
+                run = runs[run_name]
+                value = getattr(run, cond[0])
+                if value != float(cond[1]):
+                    runs_copy.pop(run_name, None)
+    for run_name in runs_copy:
         run = runs[run_name]
         text += "%s:   mut_rate = %.2f   mut_dev = %.2f   max_gen = %i\n"%(run.name, run.mut_rate, run.mut_dev, run.max_gen)
 
@@ -89,7 +123,6 @@ def get_runs(bot, update):
 
 get_runs_handler = CommandHandler("get_runs", get_runs)
 dispatcher.add_handler(get_runs_handler)
-
 
 
 def get_picture(bot, update):
