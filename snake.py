@@ -147,7 +147,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
             self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file)).convert()
         except:
             self.plot_fitness = pygame.Surface((100, 100))
-        self.start_run()
+        self.start_snake()
  
     def textbox(self, _fontsize, _text, pos_l, pos_t):
         font = pygame.font.SysFont(None, _fontsize)
@@ -173,19 +173,12 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                 self.text_boxes[x][0] = font.render('Mutation rate: {}'.format(self.mutation_rate), True, (255, 255, 255))
 
     def load_images(self):
-        self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file))
-        self.plot_fitness.convert()
-        #self.plot_fitness = pygame.transform.scale(self.plot_fitness, (int(self.plot_fitness.get_width() * 0.7), int(self.plot_fitness.get_height() * 0.7)))
+        self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file)).convert()
 
     def get_RGB(self, _row, _column):
         return number_to_RGB[self.grid[_row][_column]]
  
     def spawn_fruit(self):
-        # if self.fruit_loc:
-        #     self.fruit_pos = (self.fruit_loc[0])
-        #     self.grid[self.fruit_loc[0]] = 2
-        #     self.fruit_loc = self.fruit_loc[1:]
-        # else:
         # generate two random numbers and spawn apple if the grid position is empty
         s = np.random.uniform(0, self.width, 2)
         s = (int(math.floor(s[0])), int(math.floor(s[1])))
@@ -233,7 +226,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         if self.spawn_counter < self.population.__len__():
             self.current_snake = self.population[self.spawn_counter]
             self.spawn_counter += 1
-            self.start_run()
+            self.start_snake()
         else:
             self.reproduce()
             self.generate_images()
@@ -280,10 +273,10 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         self.parent_fitness.append(top_fitness)
         # get list of parents and generate offspring
         parents = [self.population[index] for index in top_indices]
-        np_o_p = [8, 8, 7, 7, 7, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2]
+        number_of_partners = [8, 8, 7, 7, 7, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2]
         offspring = []
         for i, parent in enumerate(parents):
-            partners = [parents[index] for index in random.sample(range(parents.__len__()), np_o_p[i])]
+            partners = [parents[index] for index in random.sample(range(parents.__len__()), number_of_partners[i])]
             for j, partner in enumerate(partners):
                 quotient = parent.fitness / (parent.fitness + partner.fitness)
                 matrix1 = self.generate_matrix(parent.input_to_hidden1, partner.input_to_hidden1, quotient)
@@ -292,9 +285,9 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                 offspring.append(Snake(matrix1, matrix2, matrix3))
         for i in range(2):
             for j in range(5):
-                matrix1 = self.generate_matrix( parents[i].input_to_hidden1,   parents[i].input_to_hidden1,   0.)
-                matrix2 = self.generate_matrix( parents[i].hidden1_to_hidden2, parents[i].hidden1_to_hidden2, 0.)
-                matrix3 = self.generate_matrix( parents[i].hidden2_to_output,  parents[i].hidden2_to_output,  0.)
+                matrix1 = self.generate_matrix(parents[i].input_to_hidden1,   parents[i].input_to_hidden1,   0.)
+                matrix2 = self.generate_matrix(parents[i].hidden1_to_hidden2, parents[i].hidden1_to_hidden2, 0.)
+                matrix3 = self.generate_matrix(parents[i].hidden2_to_output,  parents[i].hidden2_to_output,  0.)
                 offspring.append(Snake(matrix1, matrix2, matrix3))
         fresh = [Snake() for _ in range(20)]
         for snek in fresh:
@@ -306,7 +299,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         self.death_wall = 0
         self.death_self = 0
         self.death_time = 0
-        self.start_run()
+        self.start_snake()
  
     def generate_matrix(self, p_matrix1, p_matrix2, _quotient):
         neurons2, neurons1 = p_matrix1.shape
@@ -322,11 +315,11 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         for k in mutation_spot:
             mutate[0][k] = np.random.normal(0, self.mutation_deviation)
         result = np.add(result, mutate)
-        #logging.debug('mutation_spot: {}, \nby: \n{}'.format(mutation_spot, mutate))
+        # logging.debug('mutation_spot: {}, \nby: \n{}'.format(mutation_spot, mutate))
         # logging.debug('Fitness quotient: {},\n index: {},\n'.format(quotient, mask))
         return result.reshape((neurons2, neurons1))
  
-    def start_run(self):
+    def start_snake(self):
         logging.debug('STARTED RUN')
         self.grid = np.zeros((self.width, self.height))
         start_loc = np.random.randint(5, 25, size=2)
@@ -361,10 +354,6 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         self.current_snake.body = self.current_snake.body[1:]
  
     def update_distances(self):
-        #y, x = self.current_snake.body[-1][0], self.current_snake.body[-1][1]
-        #logging.debug('head pos, x: {}, y: {}'.format(x, y))
-
-
         body_array = np.array(self.current_snake.body)
         head       = np.array(self.current_snake.body[-1])
         logging.debug('head pos, x: %i, y: %i'%(head[1], head[0]))
@@ -406,7 +395,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         if self.last_fruit > 700:
             distance = np.array(self.fruit_pos) - np.array(self.current_snake.body[-1])
             distance = np.sqrt(np.sum(distance * distance))
-            #self.score += int( 1 / distance ) * 200
+            # self.score += int( 1 / distance ) * 200
             self.score += (200 - int(distance * 200 / 43))
             self.current_snake.dead = True
             self.death_time += 1
@@ -457,7 +446,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
             self.move(game.current_snake.dir)
             self.update_score()
             if lastgen % 100 == 0:
-                # TODO: game.save_population(game.autosave_file)
+                # TODO: self.save_population(self.autosave_file)
                 pass
             if not self.show:
                 if lastgen != self.generation:
@@ -471,9 +460,8 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                 for event in pygame.event.get():
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                         self.show = not self.show
-            # for event in pygame.event.get():
-            #     if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            #         game.show = not game.show
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        self.running = False
             else:
                 self.update_messages()
                 pygame.display.flip()
@@ -486,16 +474,10 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                             break
                         elif event.key == pygame.K_LEFT:
                             self.set_mutation_deviation(-0.1)
-                        #     game.current_snake.set_dir('LEFT')
-                        #     logging.debug('L')
                         elif event.key == pygame.K_RIGHT:
                             self.set_mutation_deviation(0.1)
-                        #     game.current_snake.set_dir('RIGHT')
-                        #     logging.debug('R')
                         elif event.key == pygame.K_DOWN:
                             self.set_speed(-1)
-                        #     game.current_snake.set_dir('DOWN')
-                        #     logging.debug('D')
                         elif event.key == pygame.K_UP:
                             self.set_speed(1)
                         elif event.key == pygame.K_w:
@@ -504,8 +486,6 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                             self.set_mutation_rate(-0.01)
                         elif event.key == pygame.K_p:
                             self.show = not self.show
-                        #     game.current_snake.set_dir('UP')
-                        #     logging.debug('U')
                 # game.move(game.current_snake.dir)
                 # game.current_snake.calc_dir(game.input)
                 screen.fill((0, 0, 0))
