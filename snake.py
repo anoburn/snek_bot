@@ -14,90 +14,7 @@ import functools
 #    pygame.init()
 #    logging.basicConfig(stream=sys.stderr, level=logging.ERROR)  # set to ERROR to omit debugging
  
- 
-def start_run(mut_rate, mut_dev, max_gen, save_directory=None):
-    logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
-    pygame.init()       # Wurde von setup() hierhin verschoben
-    size = width, height = 1000, 600
-    screen = pygame.display.set_mode(size)
-    clock = pygame.time.Clock()
-    rec = Rectangle(10, 10, 1)
-    grid = np.zeros((30, 30))
-    game = World(grid, mut_rate, mut_dev, save_directory)
-    lastgen = 0
-    while game.running and lastgen <= max_gen:
-        game.current_snake.calc_dir(game.input)
-        #print(timer.timeit(10))
-        #timer = timeit.Timer(functools.partial(game.generate_matrix, game.population[0].input_to_hidden1, game.population[1].input_to_hidden1, 0.5))
-        #print(timer.timeit(10))
-        game.move(game.current_snake.dir)
-        game.update_score()
-        if lastgen % 100 == 0:
-            # TODO: game.save_population(game.autosave_file)
-            pass
-        if not game.show:
-            if lastgen != game.generation:
-                lastgen = game.generation
-                game.update_messages()
-                pygame.display.flip()
-                screen.fill((0, 0, 0))
-                for text, recta in game.text_boxes:
-                    screen.blit(text, recta)
-                screen.blit(game.plot_fitness, (350, 0))
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-                    game.show = not game.show
-        # for event in pygame.event.get():
-        #     if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-        #         game.show = not game.show
-        else:
-            game.update_messages()
-            pygame.display.flip()
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    # if event.key == pygame.K_SPACE:
-                    #     game.paused = not game.paused
-                    if event.key == pygame.K_ESCAPE:
-                        game.running = False
-                        break
-                    elif event.key == pygame.K_LEFT:
-                        game.set_mutation_deviation(-0.1)
-                    #     game.current_snake.set_dir('LEFT')
-                    #     logging.debug('L')
-                    elif event.key == pygame.K_RIGHT:
-                        game.set_mutation_deviation(0.1)
-                    #     game.current_snake.set_dir('RIGHT')
-                    #     logging.debug('R')
-                    elif event.key == pygame.K_DOWN:
-                        game.set_speed(-1)
-                    #     game.current_snake.set_dir('DOWN')
-                    #     logging.debug('D')
-                    elif event.key == pygame.K_UP:
-                        game.set_speed(1)
-                    elif event.key == pygame.K_w:
-                        game.set_mutation_rate(0.01)
-                    elif event.key == pygame.K_s:
-                        game.set_mutation_rate(-0.01)
-                    elif event.key == pygame.K_p:
-                        game.show = not game.show
-                    #     game.current_snake.set_dir('UP')
-                    #     logging.debug('U')
-            # game.move(game.current_snake.dir)
-            # game.current_snake.calc_dir(game.input)
-            screen.fill((0, 0, 0))
-            for text, recta in game.text_boxes:
-                screen.blit(text, recta)
-            screen.blit(game.plot_fitness, (350, 0))
-            for row in range(game.width):
-                for column in range(game.height):
-                    color = game.get_RGB(row, column)
-                    pygame.draw.rect(screen, color, [(rec.s + rec.w) * column + rec.s + 10,
-                                                     (rec.s + rec.h) * row + rec.s + 10, rec.w, rec.h])
-            clock.tick(game.speed * 10)
-    game.save_population(game.save_file)
-    pygame.quit()
- 
- 
+
 class Rectangle:
     def __init__(self, _width, _height, _spacing):
         self.w = _width
@@ -152,8 +69,8 @@ class Snake:
         self.dir = int_to_dir[int(np.argmax(output))]
  
  
-class World:  # starting population size, population, mutation rate, mutation deviation,
-    def __init__(self, _game_grid, _mutation_rate, _mutation_dev, save_directory=None):
+class GameHandler:  # starting population size, population, mutation rate, mutation deviation,
+    def __init__(self, _game_grid, _mutation_rate, _mutation_dev, _max_generation, save_directory=None):
         # get the basic game grid and resulting width and height
         self.grid = _game_grid
         self.width, self.height = self.grid.shape
@@ -166,6 +83,10 @@ class World:  # starting population size, population, mutation rate, mutation de
         self.last_fruit = 0
         self.mutation_rate = _mutation_rate
         self.mutation_deviation = _mutation_dev
+        if _max_generation < 0:
+            self.max_generation = True
+        else:
+            self.max_generation = _max_generation
         # generate folder
         if(save_directory is not None):
             self.folder = save_directory
@@ -360,32 +281,21 @@ class World:  # starting population size, population, mutation rate, mutation de
         # get list of parents and generate offspring
         parents = [self.population[index] for index in top_indices]
         np_o_p = [8, 8, 7, 7, 7, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2]
-        #offspring = [Snake() for _ in range(parents.__len__() * 5)]
         offspring = []
         for i, parent in enumerate(parents):
             partners = [parents[index] for index in random.sample(range(parents.__len__()), np_o_p[i])]
             for j, partner in enumerate(partners):
                 quotient = parent.fitness / (parent.fitness + partner.fitness)
-                
-                #offspring[i * partners.__len__() + j].input_to_hidden1 = self.generate_matrix(parent.input_to_hidden1, partner.input_to_hidden1, quotient)
-                #offspring[i * partners.__len__() + j].hidden1_to_hidden2 = self.generate_matrix(parent.hidden1_to_hidden2, partner.hidden1_to_hidden2, quotient)
-                #offspring[i * partners.__len__() + j].hidden2_to_output = self.generate_matrix(parent.hidden2_to_output, partner.hidden2_to_output, quotient)
-                
                 matrix1 = self.generate_matrix(parent.input_to_hidden1, partner.input_to_hidden1, quotient)
                 matrix2 = self.generate_matrix(parent.hidden1_to_hidden2, partner.hidden1_to_hidden2, quotient)
                 matrix3 = self.generate_matrix(parent.hidden2_to_output, partner.hidden2_to_output, quotient)
                 offspring.append(Snake(matrix1, matrix2, matrix3))
-        #clone = [Snake() for _ in range(10)]
         for i in range(2):
             for j in range(5):
-                #clone[i * partners.__len__() + j].input_to_hidden1 = self.generate_matrix(parent.input_to_hidden1, partner.input_to_hidden1, quotient)
-                #clone[i * partners.__len__() + j].hidden1_to_hidden2 = self.generate_matrix(parent.hidden1_to_hidden2, partner.hidden1_to_hidden2, quotient)
-                #clone[i * partners.__len__() + j].hidden2_to_output = self.generate_matrix(parent.hidden2_to_output, partner.hidden2_to_output, quotient)
                 matrix1 = self.generate_matrix( parents[i].input_to_hidden1,   parents[i].input_to_hidden1,   0.)
                 matrix2 = self.generate_matrix( parents[i].hidden1_to_hidden2, parents[i].hidden1_to_hidden2, 0.)
                 matrix3 = self.generate_matrix( parents[i].hidden2_to_output,  parents[i].hidden2_to_output,  0.)
                 offspring.append(Snake(matrix1, matrix2, matrix3))
-                #offspring.append(clone[i * partners.__len__() + j])
         fresh = [Snake() for _ in range(20)]
         for snek in fresh:
             offspring.append(snek)
@@ -536,6 +446,80 @@ class World:  # starting population size, population, mutation rate, mutation de
                 f.write('\n')
                 np.savetxt(f, snake.hidden2_to_output, delimiter=',')
                 f.write('\n')
+
+    def run(self):
+        lastgen = 0
+        while self.running and lastgen <= self.max_generation:
+            self.current_snake.calc_dir(self.input)
+            # print(timer.timeit(10))
+            # timer = timeit.Timer(functools.partial(game.generate_matrix, game.population[0].input_to_hidden1, game.population[1].input_to_hidden1, 0.5))
+            # print(timer.timeit(10))
+            self.move(game.current_snake.dir)
+            self.update_score()
+            if lastgen % 100 == 0:
+                # TODO: game.save_population(game.autosave_file)
+                pass
+            if not self.show:
+                if lastgen != self.generation:
+                    lastgen = self.generation
+                    self.update_messages()
+                    pygame.display.flip()
+                    screen.fill((0, 0, 0))
+                    for text, recta in self.text_boxes:
+                        screen.blit(text, recta)
+                    screen.blit(self.plot_fitness, (350, 0))
+                for event in pygame.event.get():
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+                        self.show = not self.show
+            # for event in pygame.event.get():
+            #     if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            #         game.show = not game.show
+            else:
+                self.update_messages()
+                pygame.display.flip()
+                for event in pygame.event.get():
+                    if event.type == pygame.KEYDOWN:
+                        # if event.key == pygame.K_SPACE:
+                        #     game.paused = not game.paused
+                        if event.key == pygame.K_ESCAPE:
+                            self.running = False
+                            break
+                        elif event.key == pygame.K_LEFT:
+                            self.set_mutation_deviation(-0.1)
+                        #     game.current_snake.set_dir('LEFT')
+                        #     logging.debug('L')
+                        elif event.key == pygame.K_RIGHT:
+                            self.set_mutation_deviation(0.1)
+                        #     game.current_snake.set_dir('RIGHT')
+                        #     logging.debug('R')
+                        elif event.key == pygame.K_DOWN:
+                            self.set_speed(-1)
+                        #     game.current_snake.set_dir('DOWN')
+                        #     logging.debug('D')
+                        elif event.key == pygame.K_UP:
+                            self.set_speed(1)
+                        elif event.key == pygame.K_w:
+                            self.set_mutation_rate(0.01)
+                        elif event.key == pygame.K_s:
+                            self.set_mutation_rate(-0.01)
+                        elif event.key == pygame.K_p:
+                            self.show = not self.show
+                        #     game.current_snake.set_dir('UP')
+                        #     logging.debug('U')
+                # game.move(game.current_snake.dir)
+                # game.current_snake.calc_dir(game.input)
+                screen.fill((0, 0, 0))
+                for text, recta in self.text_boxes:
+                    screen.blit(text, recta)
+                screen.blit(self.plot_fitness, (350, 0))
+                for row in range(self.width):
+                    for column in range(self.height):
+                        color = self.get_RGB(row, column)
+                        pygame.draw.rect(screen, color, [(rec.s + rec.w) * column + rec.s + 10,
+                                                         (rec.s + rec.h) * row + rec.s + 10, rec.w, rec.h])
+                clock.tick(self.speed * 10)
+        self.save_population(self.save_file)
+        pygame.quit()
  
  
 number_to_RGB = {
@@ -555,7 +539,15 @@ int_to_dir = {
     2: 'DOWN',
     3: 'UP'
 }
- 
+
 if __name__ == "__main__":
     #setup()
-    start_run(0.05, 0.3, 2500)
+    logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
+    pygame.init()
+    size = width, height = 1000, 600
+    screen = pygame.display.set_mode(size)
+    clock = pygame.time.Clock()
+    rec = Rectangle(10, 10, 1)
+    grid = np.zeros((30, 30))
+    game = GameHandler(grid, 0.05, 0.3, 10)
+    game.run()
