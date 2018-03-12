@@ -549,5 +549,5 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
     rec = Rectangle(10, 10, 1)
     grid = np.zeros((30, 30))
-    game = GameHandler(grid, 0.05, 0.3, 10)
+    game = GameHandler(grid, 0.05, 0.3, 15)
     game.run()
