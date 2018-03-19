@@ -6,6 +6,8 @@ import sys
 import random
 import matplotlib.pyplot as plt
 import os
+import pickle
+from multiprocessing import Queue
 import timeit
 import functools
  
@@ -61,17 +63,19 @@ class Snake:
         #     elif direction == 'DOWN' and self.dir != 'UP':
         #         self.dir = direction
         self.dir = direction
- 
+
     def calc_dir(self, _input):
         hidden1 = np.dot(self.input_to_hidden1, _input)
         hidden2 = np.dot(self.hidden1_to_hidden2, hidden1)
         output = np.dot(self.hidden2_to_output, hidden2)
         self.dir = int_to_dir[int(np.argmax(output))]
- 
- 
+
+
 class GameHandler:  # starting population size, population, mutation rate, mutation deviation,
     def __init__(self, _game_grid, _mutation_rate, _mutation_dev, _max_generation, save_directory=None):
         # get the basic game grid and resulting width and height
+        #pygame.init()
+        self.size = width, height = 1000, 600
         self.grid = _game_grid
         self.width, self.height = self.grid.shape
         # instantiate snake and append starting snake
@@ -89,19 +93,15 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
             self.max_generation = _max_generation
         # generate folder
         if(save_directory is not None):
-            self.folder = save_directory
+            self.folder = './data/%s/'%save_directory
         else:
             self.folder = './data/m_rate_{}_m_dev_{}/'.format(self.mutation_rate, self.mutation_deviation)
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
             os.makedirs(self.folder + 'autosave/')
- 
-        self.save_file = self.folder + 'gen{}.txt'.format(self.generation)
-        self.autosave_file = self.folder + 'autosave/gen_{}.txt'.format(self.generation)
-        self.figure_fitness_file = self.folder + 'fitness.png'
-        self.figure_fitness_data_file = self.folder + 'fitness_data.txt'
-        self.figure_snake_score_file = self.folder + 'score.png'
-        self.figure_snake_score_data_file = self.folder + 'score_data.txt'
+
+        self.update_filenames()
+
         self.parent_fitness = []
         self.parent_snake_scores = []
         self.fitness_means, self.fitness_maxs = [], []
@@ -112,9 +112,29 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         # self.fruit_loc = [(20, 10), (15, 20), (25, 5), (25, 10)]
         # game speed, running and pause
         self.speed = 8
-        self.running = True
+        self.running = False
         self.show = False
         self.paused = False
+        self.init_pygame_stuff()
+        self.start_snake()
+
+
+    def update_filenames(self):
+        self.save_file = self.folder + 'gen{}.txt'.format(self.generation)
+        self.autosave_file = self.folder + 'autosave/gen_{}.txt'.format(self.generation)
+        self.figure_fitness_file = self.folder + 'fitness.png'
+        self.figure_fitness_data_file = self.folder + 'fitness_data.txt'
+        self.figure_snake_score_file = self.folder + 'score.png'
+        self.figure_snake_score_data_file = self.folder + 'score_data.txt'
+
+
+    def init_pygame_stuff(self):
+        pygame.init()
+        pygame.display.init()
+
+        self.screen = pygame.display.set_mode(self.size)
+        self.clock = pygame.time.Clock()
+
         # textbox holder
         self.text_boxes = []  # contains: surface with rendered text, location_rectangle
         self.text_fonts = []  # contains: fonts
@@ -147,8 +167,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
             self.plot_fitness = pygame.image.load(os.path.join(self.figure_fitness_file)).convert()
         except:
             self.plot_fitness = pygame.Surface((100, 100))
-        self.start_snake()
- 
+
     def textbox(self, _fontsize, _text, pos_l, pos_t):
         font = pygame.font.SysFont(None, _fontsize)
         text = font.render(_text, True, (255, 255, 255))
@@ -156,7 +175,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         rec.left = pos_l
         rec.top = pos_t
         return text, rec, font
- 
+
     def update_messages(self):
         for x, font in enumerate(self.text_fonts):
             if x == 0:
@@ -177,7 +196,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
 
     def get_RGB(self, _row, _column):
         return number_to_RGB[self.grid[_row][_column]]
- 
+
     def spawn_fruit(self):
         # generate two random numbers and spawn apple if the grid position is empty
         s = np.random.uniform(0, self.width, 2)
@@ -187,7 +206,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
             self.fruit_pos = (s[0], s[1])
         else:
             self.spawn_fruit()
- 
+
     def move(self, direction):
         # check if snake is dead
         if not self.current_snake.dead:
@@ -220,7 +239,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                 self.current_snake.dead = True
         else:
             self.respawn()
- 
+
     def respawn(self):
         self.current_snake.fitness = self.score
         if self.spawn_counter < self.population.__len__():
@@ -230,7 +249,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         else:
             self.reproduce()
             self.generate_images()
- 
+
     def generate_images(self):
         data = self.parent_fitness[-1]
         data = np.array(data)
@@ -300,7 +319,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         self.death_self = 0
         self.death_time = 0
         self.start_snake()
- 
+
     def generate_matrix(self, p_matrix1, p_matrix2, _quotient):
         neurons2, neurons1 = p_matrix1.shape
         matrix_elter1 = p_matrix1.reshape(1, -1)
@@ -318,7 +337,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         # logging.debug('mutation_spot: {}, \nby: \n{}'.format(mutation_spot, mutate))
         # logging.debug('Fitness quotient: {},\n index: {},\n'.format(quotient, mask))
         return result.reshape((neurons2, neurons1))
- 
+
     def start_snake(self):
         logging.debug('STARTED RUN')
         self.grid = np.zeros((self.width, self.height))
@@ -330,7 +349,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         self.last_fruit = 0
         self.spawn_fruit()
         self.update_distances()
- 
+
     def spawn_snake(self, _start_x, _start_y):
         if _start_y < 15:
             self.append_snake(_start_x, _start_y)
@@ -344,20 +363,20 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
             self.append_snake(_start_x, _start_y)
             _start_y -= 1
             self.append_snake(_start_x, _start_y)
- 
+
     def append_snake(self, x, y):
         self.grid[x][y] = 1
         self.current_snake.append(x, y)
- 
+
     def remove_last(self):
         self.grid[self.current_snake.body[0][0]][self.current_snake.body[0][1]] = 0
         self.current_snake.body = self.current_snake.body[1:]
- 
+
     def update_distances(self):
         body_array = np.array(self.current_snake.body)
         head       = np.array(self.current_snake.body[-1])
         logging.debug('head pos, x: %i, y: %i'%(head[1], head[0]))
-        
+
         diff = body_array - head
 
         x_same = diff[diff[:, 1] == 0, 0]
@@ -367,7 +386,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         y_same = diff[diff[:, 0] == 0, 1]
         left  = min(-y_same[y_same < 0] - 1, default=    head[1])
         right = min( y_same[y_same > 0] - 1, default= 29-head[1])
- 
+
         fruit_horizontal   = self.fruit_pos[1] - head[1]
         fruit_vertical     = self.fruit_pos[0] - head[0]
         self.input = np.array([right, left, down, up, fruit_horizontal, fruit_vertical, 1])
@@ -387,7 +406,7 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
         # self.input = np.array([self.right, self.left, self.down, self.up,
         #                        self.fruit_right, self.fruit_left, self.fruit_down, self.fruit_up, 1])
         logging.debug('input: {}'.format(self.input))
- 
+
     def update_score(self):
         # if self.last_fruit < 1:
         #     self.score += 1
@@ -399,20 +418,38 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
             self.score += (200 - int(distance * 200 / 43))
             self.current_snake.dead = True
             self.death_time += 1
- 
+
     def set_speed(self, _int):
         if self.speed + _int > 0:
             self.speed += _int
- 
+
     def set_mutation_deviation(self, _float):
         if self.mutation_deviation + _float >= 0:
             self.mutation_deviation += _float
             self.mutation_deviation = np.round(self.mutation_deviation, decimals=1)
- 
+
     def set_mutation_rate(self, _float):
         if self.mutation_rate + _float >= 0:
             self.mutation_rate += _float
             self.mutation_rate = np.round(self.mutation_rate, decimals=2)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['clock']
+        del state['text_fonts']
+        del state['text_boxes']
+        return state
+
+    def __setstate__(self, state):
+        #pygame.init()
+        self.__dict__.update(state)
+        self.init_pygame_stuff()
+        #self.clock = pygame.time.Clock()
+
+    def save_world(self):
+        filename = self.folder + 'world.obj'
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
  
     def save_population(self, _file):
         with open(_file, 'w') as f:
@@ -436,14 +473,23 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                 np.savetxt(f, snake.hidden2_to_output, delimiter=',')
                 f.write('\n')
 
-    def run(self):
+    def run(self, queue=Queue()):
         lastgen = 0
+        self.running = True
         while self.running and lastgen <= self.max_generation:
+            while(not queue.empty()):
+                command = queue.get(False)
+                if(command == 'stop'):
+                    self.running = False
+                elif(command.split()[0] == "newname"):
+                    name_new = command.split()[1]
+                    self.folder = "./data/%s/"%name_new
+                    self.update_filenames()
             self.current_snake.calc_dir(self.input)
             # print(timer.timeit(10))
             # timer = timeit.Timer(functools.partial(game.generate_matrix, game.population[0].input_to_hidden1, game.population[1].input_to_hidden1, 0.5))
             # print(timer.timeit(10))
-            self.move(game.current_snake.dir)
+            self.move(self.current_snake.dir)
             self.update_score()
             if lastgen % 100 == 0:
                 # TODO: self.save_population(self.autosave_file)
@@ -453,10 +499,10 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                     lastgen = self.generation
                     self.update_messages()
                     pygame.display.flip()
-                    screen.fill((0, 0, 0))
+                    self.screen.fill((0, 0, 0))
                     for text, recta in self.text_boxes:
-                        screen.blit(text, recta)
-                    screen.blit(self.plot_fitness, (350, 0))
+                        self.screen.blit(text, recta)
+                    self.screen.blit(self.plot_fitness, (350, 0))
                 for event in pygame.event.get():
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                         self.show = not self.show
@@ -488,19 +534,26 @@ class GameHandler:  # starting population size, population, mutation rate, mutat
                             self.show = not self.show
                 # game.move(game.current_snake.dir)
                 # game.current_snake.calc_dir(game.input)
-                screen.fill((0, 0, 0))
+                self.screen.fill((0, 0, 0))
                 for text, recta in self.text_boxes:
-                    screen.blit(text, recta)
-                screen.blit(self.plot_fitness, (350, 0))
+                    self.screen.blit(text, recta)
+                self.screen.blit(self.plot_fitness, (350, 0))
                 for row in range(self.width):
                     for column in range(self.height):
                         color = self.get_RGB(row, column)
-                        pygame.draw.rect(screen, color, [(rec.s + rec.w) * column + rec.s + 10,
+                        pygame.draw.rect(self.screen, color, [(rec.s + rec.w) * column + rec.s + 10,
                                                          (rec.s + rec.h) * row + rec.s + 10, rec.w, rec.h])
-                clock.tick(self.speed * 10)
+                self.clock.tick(self.speed * 10)
         self.save_population(self.save_file)
+
+        pygame.display.quit()
         pygame.quit()
- 
+
+        if(lastgen >= self.max_generation):
+            return True
+        self.save_world()
+        return False
+
  
 number_to_RGB = {
     0: (255, 255, 255),  # 0 = white
