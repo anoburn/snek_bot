@@ -98,34 +98,47 @@ start_handler = CommandHandler("start_run", start_run)
 dispatcher.add_handler(start_handler)
 
 
-def continue_run(bot, update):
-    chat_id = update.message.chat_id
+def continue_run(bot, update, run_name):
+    text = None
+    if(run_name not in runs):
+        text = "Can't find %s"%run_name
+    elif(runs[run_name].finished):
+        text = "%s has already finished"%run_name
+    elif(run_name in threads):
+        if(threads[run_name].is_alive()):
+            text = "%s is already running"%run_name
+
+    if(text is None):
+        q = Queue()
+        thread = Process(name=run_name, target=run_old_world, args=(bot, update, run_name, q, finished_runs))
+        threads[run_name] = thread
+        queues[run_name]  = q
+        thread.start()
+    else:
+        bot.send_message(chat_id=update.message.chat_id, text=text)
+
+
+def continue_command(bot, update):
     input = update.message.text.split()[1:]
 
     save_runs()
 
     for run_name in input:
-        text = None
-        if(run_name not in runs):
-            text = "Can't find %s"%run_name
-        elif(runs[run_name].finished):
-            text = "%s has already finished"%run_name
-        elif(run_name in threads):
-            if(threads[run_name].is_alive()):
-                text = "%s is already running"%run_name
+        continue_run(bot, update, run_name)
 
-        if(text is None):
-            print("text not none")
-            q = Queue()
-            thread = Process(name=run_name, target=run_old_world, args=(bot, update, run_name, q, finished_runs))
-            threads[run_name] = thread
-            queues[run_name]  = q
-            thread.start()
-        else:
-            print("text none")
-            bot.send_message(chat_id=chat_id, text=text)
+dispatcher.add_handler(CommandHandler("continue", continue_command))
 
-dispatcher.add_handler(CommandHandler("continue", continue_run))
+
+def continue_all(bot, update):
+    save_runs()
+
+    for run_name in runs:
+        if(not runs[run_name].finished):
+            continue_run(bot, update, run_name)
+
+    #bot.send_message(chat_id=update.message.chat_id, text='All unfinished runs are continuing')
+
+dispatcher.add_handler(CommandHandler('continue_all', continue_all))
 
 
 def run_new_world(bot, update, run_name, mut_rate, mut_dev, max_gen, q, finished_runs):
@@ -139,8 +152,8 @@ def run_new_world(bot, update, run_name, mut_rate, mut_dev, max_gen, q, finished
 def run_old_world(bot, update, run_name, q, finished_runs):
     chat_id = update.message.chat_id
     bot.send_message(chat_id=chat_id, text="Continuing %s"%run_name)
-    world = pickle.load(open('%s/world.obj'%run_name, 'rb'))
-    bot.send_message(chat_id=chat_id, text="Loaded %s, run restored")
+    world = pickle.load(open('data/%s/world.obj'%run_name, 'rb'))
+    bot.send_message(chat_id=chat_id, text="Loaded %s, run restored"%run_name)
 
     actual_run(bot, chat_id, run_name, world, q, finished_runs)
 
@@ -170,20 +183,33 @@ def actual_run(bot, chat_id, run_name, world, q, finished_runs):
         bot.send_message(chat_id=chat_id, text="Interrupted %s"%run_name)
 
 
-def pause_run(bot, update):
+def pause_run(bot, update, run_name):
     chat_id = update.message.chat_id
+    if(run_name in threads):
+        if(threads[run_name].is_alive()):
+            bot.send_message(chat_id=chat_id, text="Pausing %s"%run_name)
+            logging.info("Pausing %s"%run_name)
+            q = queues[run_name]
+            q.put('stop')
+    else:
+        bot.send_message(chat_id=chat_id, text="Can't find %s in active runs"%run_name)
+
+
+def pause(bot, update):
     input = update.message.text.split()[1:]
     for run_name in input:
-        if(run_name in threads):
-            if(threads[run_name].is_alive()):
-                bot.send_message(chat_id=chat_id, text="Pausing %s"%run_name)
-                logging.info("Pausing %s"%run_name)
-                q = queues[run_name]
-                q.put('stop')
-        else:
-            bot.send_message(chat_id=chat_id, text="Can't find %s in active runs"%run_name)
+        pause_run(bot, update, run_name)
 
-dispatcher.add_handler(CommandHandler('pause', pause_run))
+dispatcher.add_handler(CommandHandler('pause', pause))
+
+
+def pause_all(bot, update):
+    chat_id = update.message.chat_id
+    for run_name in threads:
+        pause_run(bot, update, run_name)
+    bot.send_message(chat_id=chat_id, text="All active bots have received pause command. Please wait for them to confirm.")
+
+dispatcher.add_handler(CommandHandler('pause_all', pause_all))
 
 
 def get_active(bot, update):
@@ -232,7 +258,7 @@ def get_runs(bot, update):
                     runs_copy.pop(run_name, None)
     for run_name in sorted(list(runs_copy.keys())):
         run = runs[run_name]
-        text += "%s:   mut_rate = %.2f   mut_dev = %.2f   max_gen = %i   finished = %r\n"%(run.name, run.mut_rate, run.mut_dev, run.max_gen, run.finished)
+        text += "%s:   mut_rate = %.2f   mut_dev = %.2f   max_gen = %i   done = %r\n"%(run.name, run.mut_rate, run.mut_dev, run.max_gen, run.finished)
 
     bot.send_message(chat_id=chat_id, text=text)
 
